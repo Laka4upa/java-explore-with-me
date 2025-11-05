@@ -1,24 +1,20 @@
 package ru.practicum.statsserver.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import ru.practicum.statsserver.service.StatsService;
 import ru.practicum.statsdto.EndpointHit;
 import ru.practicum.statsdto.ViewStats;
-import ru.practicum.statsserver.service.StatsService;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 public class StatsController {
     private final StatsService statsService;
-
-    @Autowired
-    public StatsController(StatsService statsService) {
-        this.statsService = statsService;
-    }
 
     @PostMapping("/hit")
     @ResponseStatus(HttpStatus.CREATED)
