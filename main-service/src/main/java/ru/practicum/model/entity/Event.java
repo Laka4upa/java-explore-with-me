@@ -73,10 +73,6 @@ public class Event {
     @Builder.Default
     private List<Compilation> compilations = new ArrayList<>();
 
-    @Column(name = "views")
-    @Builder.Default
-    private Long views = 0L;
-
     @PrePersist
     protected void onCreate() {
         createdOn = LocalDateTime.now();

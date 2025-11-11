@@ -58,7 +58,7 @@ public class EventMapper {
                 .requestModeration(event.getRequestModeration())
                 .state(event.getState())
                 .title(event.getTitle())
-                .views(event.getViews())
+                .views(views)
                 .build();
     }
 
@@ -66,6 +66,7 @@ public class EventMapper {
         if (event == null) {
             return null;
         }
+
         return EventShortDto.builder()
                 .id(event.getId())
                 .annotation(event.getAnnotation())
@@ -75,7 +76,7 @@ public class EventMapper {
                 .initiator(userMapper.toShortDto(event.getInitiator()))
                 .paid(event.getPaid())
                 .title(event.getTitle())
-                .views(event.getViews())
+                .views(views)
                 .build();
     }
 
@@ -145,9 +146,6 @@ public class EventMapper {
         }
         if (updateRequest.getTitle() != null) {
             event.setTitle(updateRequest.getTitle());
-        }
-        if (updateRequest.getEventDate() != null) {
-            event.setEventDate(LocalDateTime.parse(updateRequest.getEventDate(), formatter));
         }
         if (updateRequest.getPaid() != null) {
             event.setPaid(updateRequest.getPaid());

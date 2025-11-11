@@ -35,7 +35,6 @@ public class StatsController {
 
         log.info("Stats request received: start={}, end={}, uris={}, unique={}", start, end, uris, unique);
 
-        // ✅ ЯВНАЯ ПРОВЕРКА ДАТ
         if (start.isAfter(end)) {
             log.warn("Invalid date range: start {} is after end {}", start, end);
             return ResponseEntity.badRequest()

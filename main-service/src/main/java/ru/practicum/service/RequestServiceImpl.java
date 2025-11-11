@@ -41,7 +41,6 @@ public class RequestServiceImpl implements RequestService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event with id=" + eventId + " was not found"));
 
-        // Проверки
         if (requestRepository.existsByEventIdAndRequesterId(eventId, userId)) {
             throw new ConflictException("Request already exists for user id=" + userId + " and event id=" + eventId);
         }

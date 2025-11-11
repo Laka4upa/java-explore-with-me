@@ -90,6 +90,23 @@ public class EventSpecifications {
                 predicates.add(cb.greaterThan(root.get("eventDate"), LocalDateTime.now()));
             }
 
+            if (Boolean.TRUE.equals(onlyAvailable)) {
+
+                var subquery = query.subquery(Long.class);
+                var requestRoot = subquery.from(ru.practicum.model.entity.ParticipationRequest.class);
+
+                subquery.select(cb.count(requestRoot))
+                        .where(cb.and(
+                                cb.equal(requestRoot.get("event").get("id"), root.get("id")),
+                                cb.equal(requestRoot.get("status"), ru.practicum.model.enums.RequestStatus.CONFIRMED)
+                        ));
+
+                Predicate noLimit = cb.equal(root.get("participantLimit"), 0);
+                Predicate hasAvailableSpots = cb.lessThan(subquery, root.get("participantLimit"));
+
+                predicates.add(cb.or(noLimit, hasAvailableSpots));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

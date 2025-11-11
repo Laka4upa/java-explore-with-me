@@ -24,7 +24,6 @@ import ru.practicum.repository.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,7 +38,6 @@ public class EventServiceImpl implements EventService {
     private final ParticipationRequestRepository requestRepository;
     private final EventMapper eventMapper;
     private final StatsService statsService;
-    private final Map<Long, Set<String>> eventViewIps = new ConcurrentHashMap<>();
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
@@ -180,11 +178,10 @@ public class EventServiceImpl implements EventService {
     public EventFullDto updateEventByAdmin(Long eventId, UpdateEventAdminRequest updateRequest) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event with id=" + eventId + " was not found"));
-
         if (updateRequest.getEventDate() != null) {
             LocalDateTime newEventDate = LocalDateTime.parse(updateRequest.getEventDate(), formatter);
             if (newEventDate.isBefore(LocalDateTime.now())) {
-                throw new ValidationException("Event date must be in the future");
+                throw new ValidationException("Field: eventDate. Error: cannot set event date in the past. Value: " + updateRequest.getEventDate());
             }
             event.setEventDate(newEventDate);
         }
@@ -196,8 +193,6 @@ public class EventServiceImpl implements EventService {
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
-                event.setViews(0L); // ✅ Сбрасываем счетчик просмотров при публикации
-                eventViewIps.remove(eventId); // ✅ Очищаем кэш IP для этого события
             } else if (updateRequest.getStateAction() == StateAction.REJECT_EVENT) {
                 if (event.getState() == EventState.PUBLISHED) {
                     throw new ConflictException("Cannot reject the event because it's already published");
@@ -216,14 +211,16 @@ public class EventServiceImpl implements EventService {
 
         Event updatedEvent = eventRepository.save(event);
         Integer confirmedRequests = requestRepository.countConfirmedRequestsByEventId(eventId).intValue();
+        Long views = getViewsForEvents(List.of(updatedEvent)).getOrDefault(eventId, 0L);
 
-        return eventMapper.toFullDto(updatedEvent, confirmedRequests, updatedEvent.getViews());
+        return eventMapper.toFullDto(updatedEvent, confirmedRequests, views);
     }
 
     @Override
     public List<EventShortDto> getPublicEvents(String text, List<Long> categories, Boolean paid,
                                                String rangeStart, String rangeEnd, Boolean onlyAvailable,
-                                               String sort, Integer from, Integer size, HttpServletRequest request) {
+                                               String sort, Integer from, Integer size) {
+
         Pageable pageable = PageRequest.of(from / size, size);
 
         LocalDateTime start = rangeStart != null ? LocalDateTime.parse(rangeStart, formatter) : null;
@@ -231,11 +228,6 @@ public class EventServiceImpl implements EventService {
 
         Specification<Event> specification = EventSpecifications.forPublicSearch(text, categories, paid, start, end, onlyAvailable);
         List<Event> events = eventRepository.findAll(specification, pageable).getContent();
-
-        for (Event event : events) {
-            statsService.saveHit("main-service", request.getRequestURI(), request.getRemoteAddr(),
-                    LocalDateTime.now(), event.getId());
-        }
 
         Map<Long, Integer> confirmedRequests = getConfirmedRequests(events);
         Map<Long, Long> views = getViewsForEvents(events);
@@ -250,7 +242,8 @@ public class EventServiceImpl implements EventService {
             if (sort.equals("EVENT_DATE")) {
                 result.sort(Comparator.comparing(EventShortDto::getEventDate));
             } else if (sort.equals("VIEWS")) {
-                result.sort(Comparator.comparing(EventShortDto::getViews).reversed());
+                result.sort(Comparator.comparing(dto -> views.getOrDefault(dto.getId(), 0L)));
+                Collections.reverse(result);
             }
         }
 
@@ -258,10 +251,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    @Transactional
     public EventFullDto getPublicEvent(Long id, HttpServletRequest request) {
-        log.info("🎯 GET /events/{} called from IP: {}", id, request.getRemoteAddr());
-
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Event with id=" + id + " was not found"));
 
@@ -269,40 +259,32 @@ public class EventServiceImpl implements EventService {
             throw new EntityNotFoundException("Event with id=" + id + " was not found");
         }
 
-        increaseViews(event, request.getRemoteAddr());
-
-        statsService.saveHit("main-service", request.getRequestURI(), request.getRemoteAddr(),
-                LocalDateTime.now(), id);
-
         Integer confirmedRequests = requestRepository.countConfirmedRequestsByEventId(id).intValue();
+        List<String> uris = List.of("/events/" + id);
+        Map<Long, Long> views = getViewsForEvents(List.of(event));
+        Long viewCount = views.getOrDefault(id, 0L);
 
-        log.info("📊 Event id={} has {} views from IP: {}", id, event.getViews(), request.getRemoteAddr());
+        log.info("👀 Event id={} has {} confirmed requests and {} views",
+                id, confirmedRequests, viewCount);
 
-        return eventMapper.toFullDto(event, confirmedRequests, event.getViews());
-    }
-
-    @Transactional
-    public void increaseViews(Event event, String ip) {
-        Set<String> viewerIps = eventViewIps.computeIfAbsent(event.getId(), k -> new HashSet<>());
-
-        if (!viewerIps.contains(ip)) {
-            viewerIps.add(ip);
-            Long currentViews = event.getViews() != null ? event.getViews() : 0L;
-            event.setViews(currentViews + 1);
-            eventRepository.save(event);
-            log.info("👀 Increased views for event {} from IP: {}. Total views: {}",
-                    event.getId(), ip, event.getViews());
-        }
+        return eventMapper.toFullDto(event, confirmedRequests, viewCount);
     }
 
     private Map<Long, Integer> getConfirmedRequests(List<Event> events) {
         List<Long> eventIds = events.stream().map(Event::getId).collect(Collectors.toList());
-        Map<Long, Integer> confirmedRequests = new HashMap<>();
 
-        for (Long eventId : eventIds) {
-            Long count = requestRepository.countConfirmedRequestsByEventId(eventId);
-            confirmedRequests.put(eventId, count != null ? count.intValue() : 0);
+        if (eventIds.isEmpty()) {
+            return new HashMap<>();
         }
+
+        Map<Long, Integer> confirmedRequests = requestRepository.countConfirmedRequestsByEventIds(eventIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        result -> (Long) result[0],
+                        result -> ((Long) result[1]).intValue()
+                ));
+
+        eventIds.forEach(eventId -> confirmedRequests.putIfAbsent(eventId, 0));
 
         return confirmedRequests;
     }
@@ -312,7 +294,9 @@ public class EventServiceImpl implements EventService {
                 .map(event -> "/events/" + event.getId())
                 .collect(Collectors.toList());
 
+        log.info("Getting views for URIs: {}", uris);
         Map<Long, Long> views = statsService.getViews(uris);
+        log.info("Retrieved views map: {}", views);
 
         return views;
     }

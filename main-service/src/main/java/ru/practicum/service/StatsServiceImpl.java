@@ -3,6 +3,8 @@ package ru.practicum.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import ru.practicum.model.dto.ViewStats;
@@ -30,9 +32,12 @@ public class StatsServiceImpl implements StatsService {
         try {
             String finalUri = (eventId != null) ? "/events/" + eventId : uri;
 
-            // Сохраняем хит для конкретного события
+            log.info("Saving hit: app={}, uri={}, ip={}, timestamp={}",
+                    app, finalUri, ip, timestamp.format(formatter));
+
             webClient.post()
                     .uri(statsServerUrl + "/hit")
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .bodyValue(Map.of(
                             "app", app,
                             "uri", finalUri,
@@ -53,44 +58,30 @@ public class StatsServiceImpl implements StatsService {
     @Override
     public Map<Long, Long> getViews(List<String> uris) {
         Map<Long, Long> views = new HashMap<>();
-
-        if (uris.isEmpty()) {
-            return views;
-        }
+        if (uris == null || uris.isEmpty()) return views;
 
         try {
+            String url = String.format("%s/stats?start=2020-01-01 00:00:00&end=2030-12-31 23:59:59&unique=true&uris=%s",
+                    statsServerUrl, String.join(",", uris));
+
             ViewStats[] response = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(statsServerUrl + "/stats")
-                            .queryParam("start", "2020-05-05 00:00:00")
-                            .queryParam("end", "2035-05-05 00:00:00")
-                            .queryParam("uris", String.join(",", uris))
-                            .queryParam("unique", false)
-                            .build())
+                    .uri(url)
                     .retrieve()
                     .bodyToMono(ViewStats[].class)
                     .block();
 
-
             if (response != null) {
-                log.info("🌐 Received {} stats entries", response.length);
                 for (ViewStats stats : response) {
                     Long eventId = extractEventIdFromUri(stats.getUri());
-                    log.info("🌐 Stats entry - URI: {}, Event ID: {}, Hits: {}",
-                            stats.getUri(), eventId, stats.getHits());
                     if (eventId != -1L) {
                         views.put(eventId, stats.getHits());
                     }
                 }
-            } else {
-                log.warn("No response from stats service");
             }
-
         } catch (Exception e) {
-            log.error("Failed to get views from stats service: {}", e.getMessage());
+            log.error("Error getting views: {}", e.getMessage());
         }
 
-        log.info("Final views map: {}", views);
         return views;
     }
 

@@ -27,12 +27,12 @@ public class StatsService {
                 .build();
 
         EndpointHitEntity saved = statsRepository.save(entity);
-        log.info("✅ Saved hit: id={}, app={}, uri={}, ip={}", saved.getId(), saved.getApp(), saved.getUri(), saved.getIp());
+        log.info("Saved hit: id={}, app={}, uri={}, ip={}", saved.getId(), saved.getApp(), saved.getUri(), saved.getIp());
     }
 
     public List<ViewStats> getStats(LocalDateTime start, LocalDateTime end,
                                     List<String> uris, Boolean unique) {
-        log.info("📊 Getting stats from repository...");
+        log.info("Getting stats from repository...");
 
         List<Object[]> results;
         if (Boolean.TRUE.equals(unique)) {
@@ -49,7 +49,7 @@ public class StatsService {
                         .build())
                 .collect(Collectors.toList());
 
-        log.info("📊 Found {} results", viewStats.size());
+        log.info("Found {} results", viewStats.size());
         return viewStats;
     }
 }

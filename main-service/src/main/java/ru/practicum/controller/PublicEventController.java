@@ -53,15 +53,16 @@ public class PublicEventController {
         try {
             statsService.saveHit("main-service", "/events", request.getRemoteAddr(),
                     LocalDateTime.now(), null);
+            log.info("Saved hit for /events from IP: {}", request.getRemoteAddr());
         } catch (Exception e) {
-            log.error("Failed to save hit: {}", e.getMessage());
+            log.error("Failed to save hit for /events: {}", e.getMessage());
         }
 
         List<EventShortDto> events = eventService.getPublicEvents(
                 text, categories, paid,
                 rangeStart != null ? rangeStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : null,
                 rangeEnd != null ? rangeEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : null,
-                onlyAvailable, sort != null ? sort.name() : null, from, size, request);
+                onlyAvailable, sort != null ? sort.name() : null, from, size);
 
         return ResponseEntity.ok(events);
     }
@@ -69,6 +70,15 @@ public class PublicEventController {
     @GetMapping("/{id}")
     public ResponseEntity<EventFullDto> getEvent(@PathVariable Long id, HttpServletRequest request) {
         log.info("GET /events/{} from IP: {}", id, request.getRemoteAddr());
+
+        try {
+            statsService.saveHit("main-service", "/events/" + id, request.getRemoteAddr(),
+                    LocalDateTime.now(), id);
+            log.info("Saved hit for /events/{} from IP: {}", id, request.getRemoteAddr());
+        } catch (Exception e) {
+            log.error("Failed to save hit for /events/{}: {}", id, e.getMessage());
+        }
+
         EventFullDto event = eventService.getPublicEvent(id, request);
         return ResponseEntity.ok(event);
     }
