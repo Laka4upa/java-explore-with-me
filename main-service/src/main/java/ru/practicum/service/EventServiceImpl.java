@@ -277,7 +277,7 @@ public class EventServiceImpl implements EventService {
             return new HashMap<>();
         }
 
-        Map<Long, Integer> confirmedRequests = requestRepository.countConfirmedRequestsByEventIds(eventIds)
+        Map<Long, Integer> confirmedRequests = requestRepository.findConfirmedRequestsCountByEventIds(eventIds)
                 .stream()
                 .collect(Collectors.toMap(
                         result -> (Long) result[0],

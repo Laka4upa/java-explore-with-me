@@ -49,7 +49,7 @@ services:
     build:
       context: .
       dockerfile: main-service/Dockerfile
-    container_name: main-service
+    container_name: ewm-service
     ports:
       - "8080:8080"
     environment:
