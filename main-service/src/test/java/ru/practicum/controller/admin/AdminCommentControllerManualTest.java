@@ -18,8 +18,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class AdminCommentControllerManualTest {
@@ -50,7 +49,7 @@ class AdminCommentControllerManualTest {
         when(commentService.getCommentsForModeration(any(), anyInt(), anyInt()))
                 .thenReturn(List.of(commentDto));
 
-        mockMvc.perform(get("/admin/comments?status=PENDING&from=0&size=10"))
+        mockMvc.perform(get("/admin/comments/pending?status=PENDING&from=0&size=10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1L))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
@@ -67,7 +66,8 @@ class AdminCommentControllerManualTest {
         when(commentService.moderateComment(anyLong(), eq(CommentStatus.APPROVED), isNull()))
                 .thenReturn(commentDto);
 
-        mockMvc.perform(patch("/admin/comments/1/approve"))
+        mockMvc.perform(patch("/admin/comments/1")
+                        .param("status", "APPROVED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
     }
@@ -83,7 +83,8 @@ class AdminCommentControllerManualTest {
         when(commentService.moderateComment(anyLong(), eq(CommentStatus.REJECTED), anyString()))
                 .thenReturn(commentDto);
 
-        mockMvc.perform(patch("/admin/comments/1/reject")
+        mockMvc.perform(patch("/admin/comments/1")
+                        .param("status", "REJECTED")
                         .param("reason", "Spam"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("REJECTED"));
