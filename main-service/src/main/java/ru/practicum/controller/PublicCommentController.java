@@ -32,7 +32,9 @@ public class PublicCommentController {
         log.info("Getting comments for event id={} with status: {}, from: {}, size: {}",
                 eventId, status, from, size);
 
-        List<CommentDto> comments = commentService.getEventComments(eventId, status, from, size);
+        CommentStatus actualStatus = CommentStatus.APPROVED;
+
+        List<CommentDto> comments = commentService.getEventComments(eventId, actualStatus, from, size);
         return ResponseEntity.ok(comments);
     }
 
@@ -43,13 +45,7 @@ public class PublicCommentController {
 
         log.info("Getting comment id={} for event id={}", commentId, eventId);
 
-        List<CommentDto> comments = commentService.getEventComments(eventId, CommentStatus.APPROVED, 0, 100);
-        CommentDto comment = comments.stream()
-                .filter(c -> c.getId().equals(commentId))
-                .findFirst()
-                .orElseThrow(() -> new ru.practicum.exception.EntityNotFoundException(
-                        "Comment with id=" + commentId + " was not found"));
-
+        CommentDto comment = commentService.getCommentByIdAndEventId(commentId, eventId);
         return ResponseEntity.ok(comment);
     }
 }

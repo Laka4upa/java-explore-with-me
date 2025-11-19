@@ -80,11 +80,13 @@ class PublicCommentControllerManualTest {
                 .status(CommentStatus.APPROVED)
                 .build();
 
-        when(commentService.getEventComments(anyLong(), eq(CommentStatus.APPROVED), anyInt(), anyInt()))
-                .thenReturn(List.of(commentDto));
+        when(commentService.getCommentByIdAndEventId(anyLong(), anyLong()))
+                .thenReturn(commentDto);
 
         mockMvc.perform(get("/events/1/comments/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L));
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.text").value("Test Comment"))
+                .andExpect(jsonPath("$.status").value("APPROVED"));
     }
 }

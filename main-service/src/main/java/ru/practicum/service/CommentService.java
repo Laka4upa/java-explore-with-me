@@ -21,4 +21,6 @@ public interface CommentService {
     List<CommentDto> getUserComments(Long userId, Integer from, Integer size);
 
     List<CommentDto> getCommentsForModeration(CommentStatus status, Integer from, Integer size);
+
+    CommentDto getCommentByIdAndEventId(Long commentId, Long eventId);
 }

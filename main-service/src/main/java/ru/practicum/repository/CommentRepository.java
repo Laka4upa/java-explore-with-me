@@ -8,6 +8,7 @@ import ru.practicum.model.entity.Comment;
 import ru.practicum.model.enums.CommentStatus;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
@@ -23,4 +24,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                            Pageable pageable);
 
     Boolean existsByEventIdAndAuthorId(Long eventId, Long authorId);
+
+    @Query("SELECT c FROM Comment c WHERE c.id = :commentId AND c.event.id = :eventId")
+    Optional<Comment> findByIdAndEventId(@Param("commentId") Long commentId,
+                                         @Param("eventId") Long eventId);
 }

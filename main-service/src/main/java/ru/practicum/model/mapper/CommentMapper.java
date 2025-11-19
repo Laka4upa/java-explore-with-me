@@ -6,6 +6,7 @@ import ru.practicum.model.dto.NewCommentDto;
 import ru.practicum.model.entity.Comment;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,12 +35,16 @@ public class CommentMapper {
                 .status(comment.getStatus())
                 .created(comment.getCreated() != null ? comment.getCreated().format(formatter) : null)
                 .updated(comment.getUpdated() != null ? comment.getUpdated().format(formatter) : null)
+                .editCount(comment.getEditCount())
+                .rejectionReason(comment.getRejectionReason())
                 .author(userMapper.toShortDto(comment.getAuthor()))
                 .eventId(comment.getEvent().getId())
                 .build();
     }
 
     public List<CommentDto> toDtoList(List<Comment> comments) {
+        if (comments == null) return Collections.emptyList();
+
         return comments.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());

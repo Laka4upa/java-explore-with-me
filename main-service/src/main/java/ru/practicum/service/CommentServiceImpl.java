@@ -190,4 +190,17 @@ public class CommentServiceImpl implements CommentService {
 
         return commentMapper.toDtoList(comments);
     }
+
+    @Override
+    public CommentDto getCommentByIdAndEventId(Long commentId, Long eventId) {
+        Comment comment = commentRepository.findByIdAndEventId(commentId, eventId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Comment with id=" + commentId + " was not found for event id=" + eventId));
+
+        if (comment.getStatus() != CommentStatus.APPROVED) {
+            throw new EntityNotFoundException("Comment not found or not approved");
+        }
+
+        return commentMapper.toDto(comment);
+    }
 }
